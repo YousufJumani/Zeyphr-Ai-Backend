@@ -16,7 +16,15 @@ import { textToSpeech, setVoiceGender, getCurrentVoiceConfig, getRandomConversat
 
 dotenv.config();
 
-console.log('🚀 Starting AI Therapist Server...');
+// Production logging optimization
+const isProduction = process.env.NODE_ENV === 'production';
+const log = (message, ...args) => {
+  if (!isProduction || process.env.DEBUG === 'true') {
+    console.log(message, ...args);
+  }
+};
+
+log('🚀 Starting AI Therapist Server...');
 
 const app = express();
 const server = createServer(app);
@@ -42,6 +50,18 @@ app.use(cors({
   credentials: false
 }));
 
+// Request timeout middleware (30 seconds for DigitalOcean App Platform)
+app.use((req, res, next) => {
+  req.setTimeout(30000, () => {
+    res.status(408).json({ error: 'Request timeout' });
+  });
+  next();
+});
+
+// Body parsing with size limits
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 // Session storage
 const sessions = new Map();
 
@@ -53,7 +73,7 @@ const activeSynthesizers = new Map();
 // const GREETING_MESSAGE = "Hello, I'm your AI therapist. I'm here to listen and support you. Please tell me what's on your mind today."; // OLD static message
 
 io.on('connection', (socket) => {
-  console.log(`Client connected: ${socket.id}`);
+  log(`Client connected: ${socket.id}`);
   sessions.set(socket.id, {
     conversationHistory: [],
     isActive: false
@@ -61,7 +81,7 @@ io.on('connection', (socket) => {
 
   // Step 1: Button pressed -> Play greeting via Azure TTS and start recording
   socket.on('startSession', async () => {
-    console.log(`Starting session for ${socket.id}`);
+    log(`Starting session for ${socket.id}`);
     let session = sessions.get(socket.id);
     if (!session) {
       // Create a new session if missing (handles restart after endSession)
@@ -86,7 +106,7 @@ io.on('connection', (socket) => {
           socket.emit('aiAudio', { audio: audioChunk });
         },
         (error) => {
-          console.error(`TTS Error:`, error);
+          log(`TTS Error:`, error);
           socket.emit('error', { message: 'Voice synthesis failed: ' + error });
         },
         () => {
@@ -101,22 +121,22 @@ io.on('connection', (socket) => {
       activeSynthesizers.set(socket.id, synthesizer);
 
     } catch (error) {
-      console.error(`Error in startSession:`, error);
+      log(`Error in startSession:`, error);
       socket.emit('error', { message: 'Failed to start session: ' + error.message });
     }
   });
   // Step 2-4: Voice transcribed -> Send to OpenRouter -> Convert response to Azure TTS
   socket.on('userSpeech', async ({ text }) => {
-    console.log(`User speech: "${text?.substring(0, 100)}..."`);
+    log(`User speech: "${text?.substring(0, 100)}..."`);
     const session = sessions.get(socket.id);
     if (!session || !text || typeof text !== 'string' || text.trim().length === 0 || text.length > 1000) {
-      console.log('Invalid session or text input');
+      log('Invalid session or text input');
       return;
     }
 
     const cleanText = text.trim();
     if (cleanText.length < 2) {
-      console.log('Text too short');
+      log('Text too short');
       return;
     }
 
@@ -126,7 +146,7 @@ io.on('connection', (socket) => {
       try {
         currentSynthesizer.stop();
       } catch (err) {
-        console.log('Error stopping TTS:', err.message);
+        log('Error stopping TTS:', err.message);
         activeSynthesizers.delete(socket.id);
       }
     }
@@ -161,7 +181,7 @@ io.on('connection', (socket) => {
           socket.emit('aiAudio', { audio: audioChunk });
         },
         (error) => {
-          console.error('TTS Error for AI response:', error);
+          log('TTS Error for AI response:', error);
           socket.emit('error', { message: 'Voice synthesis failed: ' + error });
         },
         () => {
@@ -173,7 +193,7 @@ io.on('connection', (socket) => {
       activeSynthesizers.set(socket.id, synthesizer);
 
     } catch (error) {
-      console.error('Error processing user speech:', error);
+      log('Error processing user speech:', error);
 
       // Send fallback response
       const fallbackResponse = "I'm having trouble processing that. Could you please try again?";
@@ -186,7 +206,7 @@ io.on('connection', (socket) => {
           socket.emit('aiAudio', { audio: audioChunk });
         },
         (error) => {
-          console.error('TTS Error for fallback:', error);
+          log('TTS Error for fallback:', error);
         },
         () => {
           // Clean up when synthesis completes
@@ -200,13 +220,13 @@ io.on('connection', (socket) => {
 
   // Handle interruption
   socket.on('interruptAI', () => {
-    console.log(`Interrupting AI for ${socket.id}`);
+    log(`Interrupting AI for ${socket.id}`);
     const synthesizer = activeSynthesizers.get(socket.id);
     if (synthesizer) {
       try {
         synthesizer.stop();
       } catch (err) {
-        console.log('Error stopping TTS during interrupt:', err.message);
+        log('Error stopping TTS during interrupt:', err.message);
       } finally {
         activeSynthesizers.delete(socket.id);
       }
@@ -220,7 +240,7 @@ io.on('connection', (socket) => {
       try {
         synthesizer.stop();
       } catch (err) {
-        console.log('Error stopping TTS during speech detection:', err.message);
+        log('Error stopping TTS during speech detection:', err.message);
       } finally {
         activeSynthesizers.delete(socket.id);
       }
@@ -235,7 +255,7 @@ io.on('connection', (socket) => {
       try {
         synthesizer.stop();
       } catch (err) {
-        console.log('Error stopping TTS during session end:', err.message);
+        log('Error stopping TTS during session end:', err.message);
       } finally {
         activeSynthesizers.delete(socket.id);
       }
@@ -256,7 +276,7 @@ io.on('connection', (socket) => {
       try {
         synthesizer.stop();
       } catch (err) {
-        console.log('Error stopping TTS during disconnect:', err.message);
+        log('Error stopping TTS during disconnect:', err.message);
       } finally {
         activeSynthesizers.delete(socket.id);
       }
@@ -350,7 +370,7 @@ app.post('/api/voice/switch', express.json(), (req, res) => {
       voiceConfig: currentConfig
     });
   } catch (error) {
-    console.error('Error switching voice:', error);
+    log('Error switching voice:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -388,7 +408,7 @@ app.post('/api/voice/performance', express.json(), (req, res) => {
       voiceConfig: currentConfig
     });
   } catch (error) {
-    console.error('Error switching performance mode:', error);
+    log('Error switching performance mode:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -403,7 +423,7 @@ app.get('/api/voice/current', (req, res) => {
       voiceConfig: currentConfig
     });
   } catch (error) {
-    console.error('Error getting voice config:', error);
+    log('Error getting voice config:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -419,15 +439,69 @@ const checkEnvironment = () => {
   if (missing.length > 0) {
     console.error(`Missing environment variables: ${missing.join(', ')}`);
     console.error('Please check your .env file');
+    if (isProduction) {
+      process.exit(1); // Exit in production if required env vars are missing
+    }
   } else {
-    console.log('All environment variables are set');
+    log('All environment variables are set');
   }
 };
+
+// Graceful shutdown handling for DigitalOcean App Platform
+const gracefulShutdown = (signal) => {
+  log(`Received ${signal}, shutting down gracefully...`);
+
+  // Stop accepting new connections
+  server.close(() => {
+    log('HTTP server closed');
+
+    // Clean up all active synthesizers
+    for (const [socketId, synthesizer] of activeSynthesizers) {
+      try {
+        synthesizer.stop();
+      } catch (err) {
+        log(`Error stopping synthesizer for ${socketId}:`, err.message);
+      }
+    }
+    activeSynthesizers.clear();
+
+    // Clean up synthesizer resources
+    cleanupSynthesizer();
+
+    log('Graceful shutdown complete');
+    process.exit(0);
+  });
+
+  // Force shutdown after 30 seconds
+  setTimeout(() => {
+    log('Forcing shutdown after timeout');
+    process.exit(1);
+  }, 30000);
+};
+
+// Handle shutdown signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  if (isProduction) {
+    process.exit(1);
+  }
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  if (isProduction) {
+    process.exit(1);
+  }
+});
 
 // Start server
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Health check: http://localhost:${PORT}/health`);
+  log(`Server running on port ${PORT}`);
+  log(`Health check: http://localhost:${PORT}/health`);
   checkEnvironment();
 });
