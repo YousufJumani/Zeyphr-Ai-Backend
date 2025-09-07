@@ -4,6 +4,10 @@
   "version": "1.0.0",
   "description": "Backend for AI Therapist with voice interaction",
   "main": "server.js",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
@@ -19,6 +23,5 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.3"
-  },
-  "type": "module"
+  }
 }

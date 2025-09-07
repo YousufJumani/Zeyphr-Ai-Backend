@@ -1,0 +1,16 @@
+# Railway Deployment Configuration
+# This file tells Railway how to deploy your app
+
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "npm start"
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[build.env]
+NODE_ENV = "production"
+NPM_CONFIG_PRODUCTION = "false"

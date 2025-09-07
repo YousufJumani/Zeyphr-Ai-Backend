@@ -1,0 +1,14 @@
+# Render Deployment Configuration
+# This file tells Render how to deploy your app
+
+services:
+  - type: web
+    name: zeyphr-backend
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        generateValue: true

@@ -3,6 +3,14 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get current directory for proper path resolution
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Import services with absolute paths
 import { getTherapistResponse } from './services/openrouter-clean.js';
 import { textToSpeech, setVoiceGender, getCurrentVoiceConfig, getRandomConversationStarter, setPerformanceMode, cleanupSynthesizer } from './services/azureTTS-clean.js';
 
