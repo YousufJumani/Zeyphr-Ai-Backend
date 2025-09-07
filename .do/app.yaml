@@ -1,0 +1,24 @@
+name: zeyphr-ai-therapist-backend
+services:
+- name: api
+  source_dir: /
+  github:
+    repo: YousufJumani/Zeyphr-Ai-Backend
+    branch: master
+  run_command: npm start
+  environment_slug: node-js
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  health_check:
+    http_path: /health
+  envs:
+  - key: NODE_ENV
+    value: production
+  - key: AZURE_SPEECH_KEY
+    type: SECRET
+  - key: AZURE_SPEECH_REGION
+    value: eastus
+  - key: OPENROUTER_API_KEY
+    type: SECRET
+  - key: FRONTEND_URL
+    value: ${APP_URL}
