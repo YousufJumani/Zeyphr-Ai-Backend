@@ -11,8 +11,45 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Import services with absolute paths
-import { getTherapistResponse } from './services/openrouter-clean.js';
-import { textToSpeech, setVoiceGender, getCurrentVoiceConfig, getRandomConversationStarter, setPerformanceMode, cleanupSynthesizer } from './services/azureTTS-clean.js';
+// Dynamically import service modules with safe fallbacks so the app won't crash
+// if a service file is missing (prevents 'Module not found' runtime errors).
+let getTherapistResponse = async () => {
+  return "I'm here to listen, but the AI service is temporarily unavailable.";
+};
+
+let textToSpeech = (text, onChunk, onError, onComplete) => {
+  // Minimal fallback synthesizer that immediately calls onComplete
+  setTimeout(() => onComplete && onComplete(), 0);
+  return { stop: () => {} };
+};
+let setVoiceGender = () => {};
+let getCurrentVoiceConfig = () => ({ gender: 'neutral', performance: 'balanced' });
+let getRandomConversationStarter = () => 'Hello, I\'m here to listen.';
+let setPerformanceMode = () => {};
+let cleanupSynthesizer = () => {};
+
+try {
+  const openrouter = await import('./services/openrouter-clean.js');
+  if (openrouter && typeof openrouter.getTherapistResponse === 'function') {
+    getTherapistResponse = openrouter.getTherapistResponse;
+  }
+} catch (err) {
+  console.error('Optional module ./services/openrouter-clean.js not found or failed to load. Using fallback.');
+}
+
+try {
+  const azure = await import('./services/azureTTS-clean.js');
+  if (azure) {
+    if (typeof azure.textToSpeech === 'function') textToSpeech = azure.textToSpeech;
+    if (typeof azure.setVoiceGender === 'function') setVoiceGender = azure.setVoiceGender;
+    if (typeof azure.getCurrentVoiceConfig === 'function') getCurrentVoiceConfig = azure.getCurrentVoiceConfig;
+    if (typeof azure.getRandomConversationStarter === 'function') getRandomConversationStarter = azure.getRandomConversationStarter;
+    if (typeof azure.setPerformanceMode === 'function') setPerformanceMode = azure.setPerformanceMode;
+    if (typeof azure.cleanupSynthesizer === 'function') cleanupSynthesizer = azure.cleanupSynthesizer;
+  }
+} catch (err) {
+  console.error('Optional module ./services/azureTTS-clean.js not found or failed to load. Using fallback.');
+}
 
 dotenv.config();
 
@@ -498,9 +535,9 @@ process.on('unhandledRejection', (reason, promise) => {
   }
 });
 
-// Start server
-const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
+// Start server (use DO provided PORT, default to 8080)
+const PORT = process.env.PORT || 8080;
+server.listen(PORT, '0.0.0.0', () => {
   log(`Server running on port ${PORT}`);
   log(`Health check: http://localhost:${PORT}/health`);
   checkEnvironment();
