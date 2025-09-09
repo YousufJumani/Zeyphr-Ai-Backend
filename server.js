@@ -67,9 +67,9 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.NODE_ENV === 'production' 
-      ? process.env.FRONTEND_URL || false 
-      : ["http://localhost:3000", "http://127.0.0.1:3000"],
+    origin: process.env.NODE_ENV === 'production'
+      ? (process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:4173", "http://127.0.0.1:4173"])
+      : ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:4173", "http://127.0.0.1:4173"],
     methods: ['GET', 'POST'],
     allowedHeaders: ['*'],
     credentials: false
@@ -82,8 +82,8 @@ const io = new Server(server, {
 
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? process.env.FRONTEND_URL || false 
-    : ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8080", "http://127.0.0.1:8080"],
+    ? (process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8080", "http://127.0.0.1:8080", "http://localhost:4173", "http://127.0.0.1:4173"])
+    : ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8080", "http://127.0.0.1:8080", "http://localhost:4173", "http://127.0.0.1:4173"],
   credentials: false
 }));
 
