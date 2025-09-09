@@ -1,7 +1,8 @@
 name: zeyphr-ai-therapist-backend
 services:
 - name: api
-  source_dir: /
+  # Build & run the backend from the backend/ folder so imports resolve correctly
+  source_dir: /backend
   github:
     repo: YousufJumani/Zeyphr-Ai-Backend
     branch: master
